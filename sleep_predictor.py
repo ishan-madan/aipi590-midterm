@@ -45,7 +45,7 @@ import adafruit_dht
 import busio
 import adafruit_mpu6050
 
-from gpiozero import LED
+from gpiozero import LED, Button
 from lcd_i2c import LCD_I2C
 
 
@@ -63,6 +63,7 @@ LCD_ROWS = 2
 
 GREEN_LED_PIN = 21
 RED_LED_PIN = 20
+START_BUTTON_PIN = 24
 
 PREDICTION_INTERVAL = 5.0  # seconds
 
@@ -299,8 +300,25 @@ def main():
     mpu = initialize_mpu()
     lcd = initialize_lcd()
     green_led, red_led = initialize_leds()
-
+    
     initialize_log()
+
+    start_button = Button(START_BUTTON_PIN, pull_up=True)
+    time.sleep(0.1)
+    print(start_button.is_pressed)
+
+    lcd.clear()
+    lcd.cursor.setPos(0, 0)
+    lcd.write_text("Click button to")
+    lcd.cursor.setPos(1, 0)
+    lcd.write_text("start")
+    print("Waiting for user to press start button...")
+    
+    while not start_button.is_pressed:
+        time.sleep(0.1)
+    
+    lcd.clear()
+    print("Button pressed, starting logging...")
 
     try:
         while True:
