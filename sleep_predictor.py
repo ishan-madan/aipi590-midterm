@@ -53,7 +53,8 @@ from lcd_i2c import LCD_I2C
 # contants
 # ==============================
 
-MODEL_PATH = "sleep_model.pkl"
+MODEL_PATH = "sleep_quality_model.pkl"
+SCALER_PATH = "sleep_quality_scaler.pkl"
 LOG_FILE = "sleep_runtime_log.csv"
 
 DHT_PIN = board.D16
@@ -208,27 +209,32 @@ def log_data(temp, humidity, motion, probability):
 # model integration
 # ==============================
 
-def load_model():
+def load_artifacts():
     """
-    Load trained sleep model from disk.
+    Load trained sleep model and scaler from disk.
 
     Returns:
-        sklearn model
+        tuple: (model, scaler)
 
     Raises:
         FileNotFoundError if model file missing.
     """
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError("sleep_model.pkl not found.")
-    return joblib.load(MODEL_PATH)
+    if not os.path.exists(SCALER_PATH):
+        raise FileNotFoundError("sleep_scaler.pkl not found.")
+    model = joblib.load(MODEL_PATH)
+    scaler = joblib.load(SCALER_PATH)
+    return model, scaler
 
 
-def predict_sleep_quality(model, temp, humidity, motion):
+def predict_sleep_quality(model, scaler, temp, humidity, motion):
     """
     Predict probability of good sleep.
 
     Args:
         model: Trained sklearn model
+        scaler: Trained sklearn StandardScaler
         temp (float)
         humidity (float)
         motion (float)
@@ -237,7 +243,8 @@ def predict_sleep_quality(model, temp, humidity, motion):
         float: Probability of good sleep (0–1)
     """
     features = [[temp, humidity, motion]]
-    pred = model.predict_proba(features)[0][1]
+    features_scaled = scaler.transform(features)
+    pred = model.predict_proba(features_scaled)[0][1]
     print(pred)
     return pred
 
@@ -295,7 +302,7 @@ def main():
 
     print("Starting Sleep AI Runtime...")
 
-    model = load_model()
+    model, scaler = load_artifacts()
     dht = initialize_dht()
     mpu = initialize_mpu()
     lcd = initialize_lcd()
@@ -327,7 +334,7 @@ def main():
 
             if temp is not None and humidity is not None:
                 probability = predict_sleep_quality(
-                    model, temp, humidity, motion
+                    model, scaler, temp, humidity, motion
                 )
 
                 log_data(temp, humidity, motion, probability)
